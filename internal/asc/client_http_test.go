@@ -67,6 +67,7 @@ func TestGetApps_RateLimitedIncludesRetryAfter(t *testing.T) {
 
 	response := jsonResponse(http.StatusTooManyRequests, `{"errors":[{"title":"Rate limit","detail":"Too many requests"}]}`)
 	response.Header.Set("Retry-After", "120")
+	response.Header.Set("X-Rate-Limit", "user-hour-lim:2000;user-hour-rem:1990;")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -83,6 +84,20 @@ func TestGetApps_RateLimitedIncludesRetryAfter(t *testing.T) {
 	}
 	if got := GetRetryAfter(err); got != 2*time.Minute {
 		t.Fatalf("expected retry-after 2m, got %s", got)
+	}
+	var re *RetryableError
+	if !errors.As(err, &re) {
+		t.Fatalf("expected RetryableError, got %T", err)
+	}
+	if re.RateLimit == nil || re.RateLimit.Windows == nil {
+		t.Fatalf("expected parsed rate limit info, got %#v", re.RateLimit)
+	}
+	w, ok := re.RateLimit.Windows["user-hour"]
+	if !ok || w.Limit == nil || w.Remaining == nil {
+		t.Fatalf("expected user-hour window with limit+remaining, got %#v", re.RateLimit.Windows)
+	}
+	if *w.Limit != 2000 || *w.Remaining != 1990 {
+		t.Fatalf("expected 1990/2000, got %d/%d", *w.Remaining, *w.Limit)
 	}
 }
 

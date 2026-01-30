@@ -33,6 +33,13 @@ func TestClassify_Timeout(t *testing.T) {
 	}
 }
 
+func TestClassify_RetryableIncludesHint(t *testing.T) {
+	ce := Classify(&asc.RetryableError{RetryAfter: 2})
+	if ce.Hint == "" {
+		t.Fatalf("expected hint, got empty")
+	}
+}
+
 // wrap creates an error that Is() matches target without altering the base string.
 type isWrapper struct {
 	target error

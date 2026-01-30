@@ -60,11 +60,22 @@ func envValue(name string) (string, bool) {
 // RetryableError is returned when a request can be retried (e.g., rate limiting).
 type RetryableError struct {
 	Err        error
+	StatusCode int
 	RetryAfter time.Duration
+	RateLimit  *RateLimitInfo
 }
 
 func (e *RetryableError) Error() string {
-	return e.Err.Error()
+	if e == nil {
+		return "retryable error"
+	}
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	if e.RetryAfter > 0 {
+		return fmt.Sprintf("retryable error (retry after %s)", e.RetryAfter)
+	}
+	return "retryable error"
 }
 
 func (e *RetryableError) Unwrap() error {
