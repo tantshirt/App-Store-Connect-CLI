@@ -114,9 +114,12 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 		// Check for rate limiting (429) or service unavailable (503)
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
 			retryAfter := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
+			rateLimit := parseRateLimitHeader(resp.Header.Get("X-Rate-Limit"))
 			return nil, &RetryableError{
 				Err:        buildRetryableError(resp.StatusCode, retryAfter, respBody),
+				StatusCode: resp.StatusCode,
 				RetryAfter: retryAfter,
+				RateLimit:  rateLimit,
 			}
 		}
 
