@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewsCommand returns the reviews command with subcommands.
@@ -152,8 +153,13 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 		}
 
 		// Fetch all remaining pages
-		reviews, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		reviews, err := asc.PaginateAllWithObserver(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+		}, func(page int, nextURL string) {
+			if !shared.ProgressEnabled() {
+				return
+			}
+			fmt.Fprintf(os.Stderr, "Fetched page %d\n", page)
 		})
 		if err != nil {
 			return fmt.Errorf("reviews: %w", err)

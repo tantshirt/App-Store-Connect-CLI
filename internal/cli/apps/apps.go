@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func appsListFlags(fs *flag.FlagSet) (output *string, pretty *bool, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
@@ -231,8 +232,14 @@ func appsList(ctx context.Context, output string, pretty bool, bundleID string, 
 		}
 
 		// Fetch all remaining pages
-		apps, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		apps, err := asc.PaginateAllWithObserver(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+		}, func(page int, nextURL string) {
+			if !shared.ProgressEnabled() {
+				return
+			}
+			// stderr-only, TTY-gated progress signal (stdout remains machine-parseable).
+			fmt.Fprintf(os.Stderr, "Fetched page %d\n", page)
 		})
 		if err != nil {
 			return fmt.Errorf("apps: %w", err)
