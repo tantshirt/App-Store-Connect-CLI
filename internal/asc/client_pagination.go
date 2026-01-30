@@ -45,8 +45,18 @@ func (r *PreReleaseVersionsResponse) GetData() interface{} {
 // PaginateFunc is a function that fetches a page of results
 type PaginateFunc func(ctx context.Context, nextURL string) (PaginatedResponse, error)
 
+// PaginationObserver is called after each page is aggregated.
+// page is 1-indexed. nextURL is the next page URL, or empty when complete.
+type PaginationObserver func(page int, nextURL string)
+
 // PaginateAll fetches all pages and aggregates results
 func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext PaginateFunc) (PaginatedResponse, error) {
+	return PaginateAllWithObserver(ctx, firstPage, fetchNext, nil)
+}
+
+// PaginateAllWithObserver fetches all pages and aggregates results, calling observer after each
+// page is aggregated (including the first page).
+func PaginateAllWithObserver(ctx context.Context, firstPage PaginatedResponse, fetchNext PaginateFunc, observer PaginationObserver) (PaginatedResponse, error) {
 	if firstPage == nil {
 		return nil, nil
 	}
@@ -233,18 +243,25 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 
 		// Check for next page
 		links := firstPage.GetLinks()
-		if links == nil || links.Next == "" {
+		next := ""
+		if links != nil {
+			next = links.Next
+		}
+		if observer != nil {
+			observer(page, next)
+		}
+		if next == "" {
 			break
 		}
 
-		if _, ok := seenNext[links.Next]; ok {
+		if _, ok := seenNext[next]; ok {
 			return result, fmt.Errorf("page %d: %w", page+1, ErrRepeatedPaginationURL)
 		}
-		seenNext[links.Next] = struct{}{}
+		seenNext[next] = struct{}{}
 		page++
 
 		// Fetch next page
-		nextPage, err := fetchNext(ctx, links.Next)
+		nextPage, err := fetchNext(ctx, next)
 		if err != nil {
 			return result, fmt.Errorf("page %d: %w", page, err)
 		}
