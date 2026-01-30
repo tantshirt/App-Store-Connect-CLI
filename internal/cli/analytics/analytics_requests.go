@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/progress"
 )
 
 // AnalyticsRequestCommand creates a new analytics report request.
@@ -448,6 +449,13 @@ Examples:
 			downloadURL := strings.TrimSpace(selectedSegment.Attributes.URL)
 			if downloadURL == "" {
 				return fmt.Errorf("analytics download: segment download URL is empty")
+			}
+
+			var spinner *progress.Spinner
+			if shared.ProgressEnabled() {
+				spinner = progress.NewSpinner(os.Stderr, "Downloading analytics report")
+				spinner.Start(requestCtx)
+				defer spinner.Stop()
 			}
 
 			download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)

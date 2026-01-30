@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/progress"
 )
 
 // FinanceCommand returns the finance command with subcommands.
@@ -144,6 +145,13 @@ Examples:
 
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
+
+			var spinner *progress.Spinner
+			if shared.ProgressEnabled() {
+				spinner = progress.NewSpinner(os.Stderr, "Downloading finance report")
+				spinner.Start(requestCtx)
+				defer spinner.Stop()
+			}
 
 			download, err := client.DownloadFinanceReport(requestCtx, asc.FinanceReportParams{
 				VendorNumber: vendorNumber,
